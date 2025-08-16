@@ -1,44 +1,35 @@
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-import { toast } from 'react-toastify'
+/* eslint-disable no-unused-vars */
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { toast } from 'react-toastify';
 
-import axiosInstanse from '../../helpers/AxiosInstance'
+import axiosInstance from '../../helpers/AxiosInstance';
 
 const initialState = {
-    allUserCount: 0,
-    subscribedCount: 0
-}
+  allUserCount: 0,
+};
 
-export const getStats = createAsyncThunk("stats/get", async () => {
-    try {
-        toast.loading("Getting stats", {
-            position: 'top-center'
-        })
-        const response = await axiosInstanse.get("/admin/stats/users")
-        if (response.status === 200) {
-            toast.dismiss();
-            toast.success(response.data.message)
-            return response.data
-        } else {
-            toast.dismiss();
-            toast.error(response.data.message);
-            throw new Error(response.data.message)
-        }
-    } catch (error) {
-        toast.dismiss();
-        toast.error(error?.response?.data?.message);
-        throw error
+export const getStats = createAsyncThunk('stats/get', async (_, { rejectWithValue }) => {
+  try {
+    const response = await axiosInstance.get('/admin/stats/users');
+    if (response.status === 200) {
+      return response.data;
+    } else {
+      return rejectWithValue(response.data.message);
     }
-})
+  } catch (error) {
+    return rejectWithValue(error?.response?.data?.message || 'Failed to fetch stats');
+  }
+});
+
 const statSlice = createSlice({
-    name: 'stat',
-    initialState,
-    reducers: {},
-    extraReducers: (builder) => {
-        builder.addCase(getStats.fulfilled, (state, action) => {
-            state.allUserCount = action.payload.allUserCount
-            state.subscribedCount = action.payload.subscribedUser
-        })
-    }
-})
+  name: 'stat',
+  initialState,
+  reducers: {},
+  extraReducers: (builder) => {
+    builder.addCase(getStats.fulfilled, (state, action) => {
+      state.allUserCount = action.payload.allUserCount || 0;
+    });
+  }
+});
 
 export default statSlice.reducer;

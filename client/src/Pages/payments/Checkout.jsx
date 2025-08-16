@@ -1,84 +1,136 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { BsCurrencyRupee } from 'react-icons/bs';
-import { useDispatch, useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
-import HomeLayout from '../../layouts/HomeLayout'
-import { getRazorpayKey, purchaseCourseBundle, verifyUserPayment } from '../../redux/slices/RazorpaySlice';
-
+import HomeLayout from '../../layouts/HomeLayout';
+import { loadUser } from '../../Redux/slices/AuthSlice';
+import {
+  getRazorpayKey,
+  purchaseCourseBundle,
+  verifyUserPayment
+} from '../../Redux/slices/RazorpaySlice';
 
 function Checkout() {
-    const dispatch = useDispatch();
-    const navigate = useNavigate();
-    const { state } = useLocation();
-    const razorpay = useSelector((state) => state.razorpay);
-    const userdata = useSelector((state) => state.auth?.data);
-    const paymentDetails = {
-        payment_id: "",
-        subscription_id: "",
-        razorpay_signature: ""
-    }
-    async function handleSubscription() {
-        if (!razorpay.key || !razorpay.subscription_id) {
-            toast.error("Something went wrong! Please try again later")
-            return;
-        }
-        const options = {
-            key: razorpay.key,
-            subscription_id: razorpay.subscription_id,
-            name: "Dutta Pvt. LTD",
-            description: "Yearly Subscription",
-            theme: {
-                color: "#cedb17"
-            },
-            prefill: {
-                email: userdata.email,
-                name: userdata.name
-            },
-            handler: async function (response) {
-                paymentDetails.payment_id = response.razorpay_payment_id
-                paymentDetails.subscription_id = response.razorpay_subscription_id
-                paymentDetails.razorpay_signature = response.razorpay_signature
-                const res = await dispatch(verifyUserPayment(paymentDetails));
-                if (res?.payload?.success) {
-                    navigate(`/course/${state?.title}/checkout/success`, { state: state });
-                } else {
-                    navigate(`/course/${state?.title}/checkout/fail`, { state: state });
-                }
-            }
-        }
-        const paymentObj = new window.Razorpay(options)
-        paymentObj.open()
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { state } = useLocation();
+  const hasFetched = useRef(false); // ✅ prevent multiple order creations
+
+  const razorpay = useSelector((state) => state.razorpay);
+  const userdata = useSelector((state) => state.auth?.data);
+
+  // ✅ Handle payment via Razorpay
+  async function handleOneTimePayment() {
+    if (!razorpay?.key || !razorpay?.order_id) {
+      toast.error("Payment setup failed. Please refresh the page.");
+      return;
     }
 
-    async function onLoad() {
-        await dispatch(getRazorpayKey());
-        await dispatch(purchaseCourseBundle())
+    if (!window.Razorpay) {
+      toast.error("Razorpay SDK not loaded");
+      return;
     }
 
-    useEffect(() => {
-        if (!state) {
-            navigate("/courses")
-        } else {
-            document.title = 'Checkout - Learning Management System'
-            onLoad()
+    const options = {
+      key: razorpay.key,
+      amount: 99900, // ₹999 in paise
+      currency: "INR",
+      name: "Smart LMS",
+      description: "1 Year Full Access Bundle",
+      order_id: razorpay.order_id,
+      prefill: {
+        email: userdata?.email || '',
+        name: userdata?.name || ''
+      },
+      theme: {
+        color: "#1A73E8"
+      },
+      handler: async function (response) {
+        const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = response;
+
+        try {
+          const res = await dispatch(verifyUserPayment({
+            razorpay_payment_id,
+            razorpay_order_id,
+            razorpay_signature
+          })).unwrap(); // ✅ throws error if failed
+
+          await dispatch(loadUser());
+
+          if (res?.success) {
+            navigate(`/course/${state?.title}/checkout/success`, { state });
+          } else {
+            navigate(`/course/${state?.title}/checkout/fail`, { state });
+          }
+        } catch (err) {
+          console.error("❌ Payment verification failed", err);
+          navigate(`/course/${state?.title}/checkout/fail`, { state });
         }
-    }, [])
-    return (
-        <HomeLayout>
-            <div className='lg:h-screen flex justify-center items-center mb-6 lg:mb-0'>
-                <div className='lg:w-1/3 w-11/12 m-auto bg-white rounded-lg shadow-lg flex flex-col gap-4 justify-center items-center pb-4'>
-                    <h1 className='bg-yellow-500 text-black font-bold text-3xl w-full text-center py-3 rounded-t-lg'>Subscription Bundle</h1>
-                    <p className='px-4 text-xl tracking-wider text-slate-500 text-center'>This purchase will allow you to access all available course of our platform for <span className='text-2xl text-blue-500 font-bold'>1 year duration.</span></p>
-                    <p className='px-5 text-xl tracking-wider text-yellow-500 text-center font-semibold'>All the existing and new launched courses will be available </p>
-                    <p className='flex gap-1 items-center text-xl justify-center text-green-500'><BsCurrencyRupee /> <span className='text-3xl font-bold'>499</span>only</p>
-                    <p className='text-slate-500 text-xl font-semibold px-4 text-center'>100% refund on cancellation within 14 days</p>
-                    <button className='btn btn-primary w-[90%]' onClick={handleSubscription}>Buy Now</button>
-                </div>
-            </div>
-        </HomeLayout>
-    )
+      },
+      modal: {
+        ondismiss: () => {
+          navigate(`/course/${state?.title}/checkout/fail`, { state });
+        }
+      }
+    };
+
+    const paymentObj = new window.Razorpay(options);
+    paymentObj.open();
+  }
+
+  // ✅ Fetch key and order ID on mount
+  async function onLoad() {
+    await dispatch(getRazorpayKey());
+    await dispatch(purchaseCourseBundle());
+  }
+
+  useEffect(() => {
+    if (!state) {
+      navigate("/courses");
+    } else if (!hasFetched.current) {
+      hasFetched.current = true;
+      document.title = 'Checkout - Smart LMS';
+      onLoad();
+    }
+  }, []);
+
+  return (
+    <HomeLayout>
+      <div className='lg:h-screen flex justify-center items-center mb-6 lg:mb-0'>
+        <div className='lg:w-1/3 w-11/12 m-auto bg-white rounded-lg shadow-lg flex flex-col gap-4 justify-center items-center pb-4'>
+          <h1 className='bg-yellow-500 text-black font-bold text-3xl w-full text-center py-3 rounded-t-lg'>
+            One-Time Course Access
+          </h1>
+
+          <p className='px-4 text-xl tracking-wider text-slate-500 text-center'>
+            This one-time payment gives you access to all current and future courses for
+            <span className='text-2xl text-blue-500 font-bold'> 1 year.</span>
+          </p>
+
+          <p className='text-slate-500 text-xl font-semibold px-4 text-center'>
+            Includes all current + future launches.
+          </p>
+
+          <p className='flex gap-1 items-center text-xl justify-center text-green-500'>
+            <BsCurrencyRupee /> <span className='text-3xl font-bold'>999</span> only
+          </p>
+
+          <p className='text-red-500 text-center text-sm'>
+            100% refund if cancelled within 14 days
+          </p>
+
+          <button
+            className='btn btn-primary w-[90%]'
+            onClick={handleOneTimePayment}
+          >
+            Pay Now
+          </button>
+        </div>
+      </div>
+    </HomeLayout>
+  );
 }
 
-export default Checkout
+export default Checkout;

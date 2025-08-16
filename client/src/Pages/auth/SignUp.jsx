@@ -1,105 +1,196 @@
-import Cookies from 'js-cookie'
-import { useState } from 'react'
-import { BsCloudUpload, BsEnvelope, BsLock, BsPerson } from 'react-icons/bs'
-import { useDispatch } from 'react-redux'
-import { Link, useNavigate } from 'react-router-dom'
+// src/Pages/Signup.jsx
 
-import option3 from '../../assets/Json/option3.json'
-import Particle from '../../components/Particle'
-import HomeLayout from '../../layouts/HomeLayout'
-import { signup } from '../../redux/slices/AuthSlice'
-function SignUp() {
+import { useEffect, useState } from "react";
+import { BsCloudUpload, BsEnvelope, BsLock, BsPerson } from "react-icons/bs";
+import { useDispatch } from "react-redux";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
-    const dispatch = useDispatch();
-    const navigate = useNavigate();
-    const token = import.meta.env.VITE_TOKEN
-    const [viewImage, setViewImage] = useState("");
+import option3 from "../../assets/json/option3.json";
+import Particle from "../../components/Particle";
+import axiosInstance from "../../helpers/axiosInstance";
+import HomeLayout from "../../layouts/HomeLayout";
+import { signup } from "../../Redux/slices/AuthSlice";
 
-    const [signUpData, setSignUpData] = useState({
-        avatar: "",
-        name: "",
-        email: "",
-        password: ""
-    })
+function Signup() {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-    function handleUserInput(e) {
-        const { name, value } = e.target;
-        setSignUpData({ ...signUpData, [name]: value })
-    }
-    function getImage(event) {
-        event.preventDefault();
-        const uploadedImage = event.target.files[0];
-        if (uploadedImage) {
-            setSignUpData({ ...signUpData, avatar: uploadedImage });
-        }
+  const [signUpData, setSignUpData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    avatar: null,
+  });
 
-        const fileReader = new FileReader();
-        fileReader.readAsDataURL(uploadedImage);
-        fileReader.addEventListener('load', function () {
-            setViewImage(this.result);
+  const [previewImage, setPreviewImage] = useState("");
+  const [inviteToken, setInviteToken] = useState("");
+
+  useEffect(() => {
+    const token = searchParams.get("token");
+    if (token) {
+      setInviteToken(token);
+
+      axiosInstance
+        .post("/user/verify-invite", { token }) // ✅ corrected path
+        .then((res) => {
+          if (res.data?.success) {
+            setSignUpData((prev) => ({
+              ...prev,
+              email: res.data.email,
+            }));
+          }
+        })
+        .catch(() => {
+          alert("Invalid or expired invite link");
+          navigate("/login");
         });
     }
+  }, []);
 
-    async function createAccount(event) {
-        event.preventDefault();
-        const formData = new FormData();
-        formData.append('avatar', signUpData.avatar);
-        formData.append('name', signUpData.name);
-        formData.append('email', signUpData.email);
-        formData.append('password', signUpData.password);
+  const handleUserInput = (e) => {
+    const { name, value } = e.target;
+    setSignUpData({ ...signUpData, [name]: value });
+  };
 
-        const response = await dispatch(signup(formData));
-        if (response.payload?.success) {
-            navigate('/');
-            setSignUpData({
-                avatar: "",
-                name: "",
-                email: "",
-                password: ""
-            })
-            setViewImage("")
-            Cookies.set('authToken', token, { expires: 7 })
-        }
+  const getImage = (e) => {
+    const uploadedImage = e.target.files[0];
+    if (uploadedImage) {
+      setSignUpData({ ...signUpData, avatar: uploadedImage });
+
+      const fileReader = new FileReader();
+      fileReader.readAsDataURL(uploadedImage);
+      fileReader.onloadend = () => setPreviewImage(fileReader.result);
+    }
+  };
+
+  const createAccount = async (e) => {
+    e.preventDefault();
+
+    let avatarUrl = "";
+
+    if (signUpData.avatar) {
+      const formData = new FormData();
+      formData.append("file", signUpData.avatar);
+      formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+      formData.append("cloud_name", import.meta.env.VITE_CLOUDINARY_CLOUD_NAME);
+
+      try {
+        const { data } = await axiosInstance.post(
+          `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+          formData
+        );
+        avatarUrl = data.secure_url;
+      } catch (err) {
+        console.error("Cloudinary Upload Error:", err);
+        alert("Avatar upload failed.");
+        return;
+      }
     }
 
-    return (
-        <HomeLayout>
-            <Particle option={option3} />
-            <div className='flex flex-col gap-3 justify-center items-center h-[91vh]'>
-                <form onSubmit={createAccount} className='lg:w-[450px] w-[90%] md:w-1/2 h-fit p-7 flex flex-col gap-5 justify-between rounded-md bg-white text-black shadow-md'>
-                    <div>
-                        <h1 className='text-3xl font-semibold mb-3'>Sign Up</h1>
-                        <p className='text-slate-400'>Please fill this form to create an account</p>
-                    </div>
-                    <hr className='border-t-2 border-slate-500' />
-                    <div className='flex items-center w-full gap-4 '>
-                        {
-                            viewImage ? (
-                                <img src={viewImage} alt="photo" className='rounded-[50%] w-14 h-14 hidden lg:block' />
-                            ) : (
-                                <label htmlFor="image" className='text-xl hidden lg:block md:block'><BsCloudUpload /></label>
-                            )
-                        }
-                        <input type="file" name='image' id='image' accept='.jpg, .jpeg, .png, .svg' className="file-input file-input-bordered file-input-warning w-full  text-white" onChange={getImage} />
-                    </div>
-                    <div className='flex items-center w-full gap-4 border-2 border-yellow-500 px-4 rounded-lg h-14 bg-slate-900'>
-                        <label htmlFor="name" className='text-xl hidden lg:block md:block text-yellow-500'><BsPerson /></label>
-                        <input type="text" name='name' id='name' placeholder="Enter Name" className="py-2 border-0 outline-0 text-xl text-white bg-transparent w-full " onChange={handleUserInput} />
-                    </div>
-                    <div className='flex items-center w-full gap-4 border-2 border-yellow-500 px-4 rounded-lg h-14 bg-slate-900'>
-                        <label htmlFor="email" className='text-xl hidden lg:block md:block text-yellow-500'><BsEnvelope /></label>
-                        <input type="email" name="email" id="email" placeholder='Enter Email' className="py-2 border-0 outline-0 text-xl text-white bg-transparent w-full " onChange={handleUserInput} />
-                    </div>
-                    <div className='flex items-center w-full gap-4 border-2 border-yellow-500 px-4 rounded-lg h-14 bg-slate-900'>
-                        <label htmlFor="password" className='text-xl hidden lg:block md:block text-yellow-500'><BsLock /></label>
-                        <input type="password" name="password" id="password" placeholder='Enter Password' className="py-2 border-0 outline-0 text-xl text-white bg-transparent w-full " onChange={handleUserInput} />
-                    </div>
-                    <button type='submit' className='btn btn-primary w-full'>SignUp</button>
-                </form>
-                <p className='text-xl text-white'>Already have an account ?  <Link to={'/login'} className='text-2xl text-blue-500 hover:underline '>Login</Link></p>
-            </div>
-        </HomeLayout>
-    )
+    const payload = {
+      fullName: signUpData.name,
+      email: signUpData.email,
+      password: signUpData.password,
+      avatar: avatarUrl,
+      token: inviteToken,
+    };
+
+    const res = await dispatch(signup(payload));
+    if (res?.payload?.success) {
+      navigate("/"); // ✅ Redirect after success
+    }
+  };
+
+  return (
+    <HomeLayout>
+      <Particle option={option3} />
+      <div className="flex justify-center items-center h-[90vh]">
+        <form
+          onSubmit={createAccount}
+          className="bg-[#191c24] text-white w-[80%] max-w-[500px] p-8 rounded-xl shadow-md border border-gray-700"
+        >
+          <h1 className="text-3xl font-bold text-center mb-6">Create Account</h1>
+
+          {/* Full Name */}
+          <div className="mb-4 flex items-center gap-2 bg-gray-800 p-2 rounded">
+            <BsPerson />
+            <input
+              type="text"
+              placeholder="Full Name"
+              name="name"
+              className="bg-transparent outline-none w-full"
+              onChange={handleUserInput}
+              value={signUpData.name}
+              required
+            />
+          </div>
+
+          {/* Email (readOnly if invited) */}
+          <div className="mb-4 flex items-center gap-2 bg-gray-800 p-2 rounded">
+            <BsEnvelope />
+            <input
+              type="email"
+              placeholder="Email"
+              name="email"
+              className="bg-transparent outline-none w-full"
+              value={signUpData.email}
+              onChange={handleUserInput}
+              readOnly={!!inviteToken}
+              required
+            />
+          </div>
+
+          {/* Password */}
+          <div className="mb-4 flex items-center gap-2 bg-gray-800 p-2 rounded">
+            <BsLock />
+            <input
+              type="password"
+              placeholder="Password"
+              name="password"
+              className="bg-transparent outline-none w-full"
+              onChange={handleUserInput}
+              value={signUpData.password}
+              required
+            />
+          </div>
+
+          {/* Avatar Upload */}
+          <div className="mb-4 bg-gray-800 p-2 rounded flex items-center gap-2">
+            <label htmlFor="avatar" className="cursor-pointer flex items-center gap-2">
+              <BsCloudUpload />
+              Upload Avatar
+            </label>
+            <input type="file" accept="image/*" id="avatar" className="hidden" onChange={getImage} />
+          </div>
+
+          {/* Image Preview */}
+          {previewImage && (
+            <img
+              src={previewImage}
+              alt="Preview"
+              className="w-24 h-24 object-cover rounded-full mx-auto mb-4"
+            />
+          )}
+
+          {/* Submit */}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 transition-colors py-2 rounded font-semibold"
+          >
+            Sign Up
+          </button>
+
+          <p className="text-center mt-4">
+            Already have an account?{" "}
+            <Link to="/login" className="text-blue-400 hover:underline">
+              Login
+            </Link>
+          </p>
+        </form>
+      </div>
+    </HomeLayout>
+  );
 }
 
-export default SignUp
+export default Signup;

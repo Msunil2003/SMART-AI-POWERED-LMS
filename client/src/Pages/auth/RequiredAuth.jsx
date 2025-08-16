@@ -10,3 +10,4 @@ function RequiredAuth({ allowedRole }) {
 }
 
 export default RequiredAuth
+

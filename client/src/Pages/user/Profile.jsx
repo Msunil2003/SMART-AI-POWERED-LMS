@@ -1,127 +1,249 @@
-import { useState } from 'react';
-import { FiEdit, FiTrash2 } from 'react-icons/fi'
-import { useDispatch, useSelector } from 'react-redux'
-import { Link, useNavigate } from 'react-router-dom'
+/* eslint-disable no-unused-vars */
+import { useEffect, useState } from 'react';
+import { BsCloudUpload } from 'react-icons/bs';
+import { useDispatch, useSelector } from 'react-redux';
+import { toast } from 'react-toastify';
 
-import HomeLayout from '../../layouts/HomeLayout'
-import { deleteProfile, editProfile, getProfile } from '../../redux/slices/AuthSlice';
-import { cancelSubscription } from '../../redux/slices/RazorpaySlice';
+import axiosInstance from '../../helpers/axiosInstance';
+import HomeLayout from '../../layouts/HomeLayout';
+import { editProfile, getProfile, loadUser } from '../../Redux/slices/AuthSlice';
 
 function Profile() {
-    const dispatch = useDispatch();
-    const navigate = useNavigate();
-    const userData = useSelector((state) => state.auth?.data)
-    const [data, setData] = useState({
-        previewImage: userData.avatar?.secure_url,
-        name: userData.name,
-        avatar: undefined,
-        userId: userData._id,
-        haschanges: false
-    })
+  const dispatch = useDispatch();
+  const userData = useSelector((state) => state.auth.user);
 
-    function handleImage(e) {
-        e.preventDefault();
-        const uploadImage = e.target.files[0];
-        if (uploadImage) {
-            const fileReader = new FileReader();
-            fileReader.readAsDataURL(uploadImage)
-            fileReader.addEventListener('load', function () {
-                setData({
-                    ...data,
-                    previewImage: this.result,
-                    avatar: uploadImage,
-                    haschanges: true
-                })
-            })
-        }
-    }
-    function handleChange(e) {
-        const { name, value } = e.target;
-        setData({
-            ...data, [name]: value, haschanges: true
-        })
+  const [data, setData] = useState({
+    previewImage: '',
+    name: '',
+    email: '',
+    phone: '',
+    avatar: undefined,
+    userId: '',
+    role: 'USER',
+    access: false,
+  });
+
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Populate form with user data from Redux
+  useEffect(() => {
+    if (!userData) {
+      dispatch(loadUser()); // fetch user if not in Redux
+      return;
     }
 
-    async function onFormSubmit(e) {
-        e.preventDefault();
-        const formdata = new FormData();
-        formdata.append("name", data.name);
-        formdata.append("avatar", data.avatar);
-        await dispatch(editProfile(formdata));
-        await dispatch(getProfile())
-    }
+    const u = userData.user || userData; // handle nested or flat structure
 
-    async function onDelete(e) {
-        e.preventDefault();
-        const res = await dispatch(deleteProfile(data.userId))
-        if (res?.payload?.success) {
-            navigate('/signup')
-        }
-    }
-    async function handleCancel(e) {
-        e.preventDefault();
-        const res = await dispatch(cancelSubscription())
-        if (res?.payload?.success) {
-            await dispatch(getProfile())
-            navigate('/')
-        }
-    }
+    setData({
+      previewImage: u?.avatar?.secure_url || '',
+      name: u?.name || '',
+      email: u?.email || '',
+      phone: u?.phone || '',
+      avatar: undefined,
+      userId: u?._id || '',
+      role: u?.role?.toUpperCase() || 'USER',
+      access: u?.subscription?.access || false,
+    });
+  }, [userData, dispatch]);
 
+  const handleImageChange = (e) => {
+    const uploadImg = e.target.files[0];
+    if (!uploadImg) return;
+
+    const fileReader = new FileReader();
+    fileReader.readAsDataURL(uploadImg);
+    fileReader.onload = () => {
+      setData((prev) => ({
+        ...prev,
+        previewImage: fileReader.result,
+        avatar: uploadImg,
+      }));
+    };
+  };
+
+  const handleUserInput = (e) => {
+    const { name, value } = e.target;
+    setData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCancelSubscription = async () => {
+    try {
+      const res = await axiosInstance.post('/payment/cancel');
+      toast.success(res.data.message);
+      dispatch(getProfile());
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Cancellation failed');
+    }
+  };
+
+  const onFormSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!data.name) return toast.error('Name cannot be empty!');
+    if (!data.phone || data.phone.length < 10)
+      return toast.error('Enter a valid phone number!');
+
+    const formData = new FormData();
+    formData.append('fullName', data.name);
+    formData.append('phone', data.phone);
+    formData.append('userId', data.userId);
+    if (data.avatar) formData.append('avatar', data.avatar);
+
+    const res = await dispatch(editProfile(formData));
+    if (res?.payload?.success) {
+      setIsEditing(false);
+      dispatch(getProfile());
+      toast.success('Profile updated successfully');
+    } else {
+      toast.error(res?.payload?.message || 'Profile update failed');
+    }
+  };
+
+  if (!userData) {
     return (
-        <HomeLayout>
-            <div className='flex justify-center items-center lg:h-screen mb-4'>
-                <form onSubmit={onFormSubmit} className='lg:w-[60%] w-[90%] flex flex-col gap-8 bg-white rounded-lg px-8 shadow-lg py-8'>
-                    <div className='flex items-center justify-center w-full'>
+      <HomeLayout>
+        <div className="flex justify-center items-center min-h-screen">
+          <p className="text-lg font-semibold">Loading profile...</p>
+        </div>
+      </HomeLayout>
+    );
+  }
 
-                        <div className='relative'>
-                            <img src={data.previewImage} alt="profile photo" className="rounded-full w-32 h-32" />
-                            <input type="file" id="imageUpload" accept='.jpg, .jpeg, .png, .svg' className='hidden' onChange={handleImage} />
-                            <label htmlFor="imageUpload" className='absolute bottom-2 right-0 rounded-full bg-slate-200 w-7 h-7 flex items-center justify-center cursor-pointer'>
-                                <FiEdit size={'18px'} color='black' />
-                            </label>
-                        </div>
+  return (
+    <HomeLayout>
+      <div className="min-h-[90vh] flex items-center justify-center p-4">
+        <form
+          noValidate
+          onSubmit={onFormSubmit}
+          className="flex flex-col justify-center gap-4 rounded-lg p-4 text-white w-full max-w-[500px] bg-gray-800 shadow-md"
+        >
+          <h1 className="text-center text-2xl font-bold">Your Profile</h1>
 
-                    </div>
+          {/* Profile Image */}
+          <label htmlFor="image_uploads" className="cursor-pointer">
+            {data.previewImage ? (
+              <img
+                src={data.previewImage}
+                alt="Profile"
+                className="w-32 h-32 rounded-full object-cover mx-auto"
+              />
+            ) : (
+              <div className="w-32 h-32 rounded-full mx-auto bg-gray-700 flex items-center justify-center">
+                <BsCloudUpload className="text-3xl text-white" />
+              </div>
+            )}
+          </label>
+          {isEditing && (
+            <input
+              className="hidden"
+              type="file"
+              name="image_uploads"
+              id="image_uploads"
+              accept=".jpg, .jpeg, .png"
+              onChange={handleImageChange}
+            />
+          )}
 
-                    <div className='grid lg:grid-cols-2 grid-cols-1 gap-8 w-full'>
-                        <div className='flex w-full relative'>
-                            <label htmlFor="name" className='absolute bg-white bottom-9 left-5 '>Name *</label>
-                            <input className='h-12 w-full font-semibold px-4 py-2 border-2 bg-transparent text-black rounded-md capitalize border-slate-400 outline-0' type="text" name='name' id='name' value={data.name} onChange={handleChange} />
-                        </div>
-                        <div className='flex w-full relative'>
-                            <label htmlFor="email" className='absolute bg-white bottom-9 left-5 '>Email *</label>
-                            <input type="text" name='email' id='email' defaultValue={userData?.email} className='h-12 w-full font-semibold px-4 py-2 border-2 bg-transparent rounded-md border-slate-400 outline-0 input-disabled' disabled />
-                        </div>
-                        <div className='flex relative'>
-                            <label htmlFor="role" className='absolute bg-white bottom-9 left-5 '>Role *</label>
-                            <input type="text" name='role' id='role' defaultValue={userData?.role} className='h-12 w-full font-semibold px-4 py-2 border-2 bg-transparent rounded-md capitalize border-slate-400 outline-0 input-disabled' disabled />
-                        </div>
-                        <div className='flex relative'>
-                            <label htmlFor="subscription" className='absolute bg-white bottom-9 left-5 '>Subscription *</label>
-                            <input type="text" name='subscription' id='subscription' defaultValue={userData.subscription?.status === "active" ? "Active" : "Inactive"} className='h-12 w-full font-semibold px-4 py-2 border-2 bg-transparent  rounded-md capitalize border-slate-400 outline-0 input-disabled' disabled />
-                        </div>
-                    </div>
+          {/* Name */}
+          <div className="flex flex-col gap-2">
+            <label htmlFor="name" className="text-sm">
+              Name:
+            </label>
+            <input
+              type="text"
+              name="name"
+              id="name"
+              placeholder="Enter name"
+              className={`bg-gray-700 px-4 py-2 rounded ${
+                !isEditing ? 'cursor-not-allowed text-gray-400' : ''
+              }`}
+              value={data.name}
+              onChange={handleUserInput}
+              readOnly={!isEditing}
+            />
+          </div>
 
-                    <div className='w-full flex lg:flex-row flex-col gap-8 items-center'>
-                        <Link to={'/profile/changePassword'} className='w-full lg:w-fit'>
-                            <button className='btn btn-primary w-full lg:w-fit normal-case'>Change Password</button>
-                        </Link>
+          {/* Phone */}
+          <div className="flex flex-col gap-2">
+            <label htmlFor="phone" className="text-sm">
+              Phone:
+            </label>
+            <input
+              type="text"
+              name="phone"
+              id="phone"
+              placeholder="Enter phone number"
+              className={`bg-gray-700 px-4 py-2 rounded ${
+                !isEditing ? 'cursor-not-allowed text-gray-400' : ''
+              }`}
+              value={data.phone}
+              onChange={handleUserInput}
+              readOnly={!isEditing}
+            />
+          </div>
 
-                        <button className='btn btn-secondary w-full lg:w-fit normal-case' disabled={!data.haschanges} type='submit' >Save Changes</button>
+          {/* Email */}
+          <div className="flex flex-col gap-2">
+            <label htmlFor="email" className="text-sm">
+              Email:
+            </label>
+            <input
+              readOnly
+              type="email"
+              name="email"
+              id="email"
+              className="bg-gray-600 px-4 py-2 rounded text-gray-300 cursor-not-allowed"
+              value={data.email}
+            />
+          </div>
 
-                        <button className='flex items-center text-red-500 gap-2 font-semibold' onClick={onDelete}>
-                            <FiTrash2 />
-                            Delete Account
-                        </button>
-                    </div>
-                    {userData.subscription?.status === "active" ? (
-                        <button onClick={handleCancel} className='btn btn-error text-white w-full'>Cancel Subscription</button>
-                    ) : null
-                    }
-                </form>
-            </div>
-        </HomeLayout>
-    )
+          {/* Role */}
+          <div className="flex flex-col gap-2">
+            <label htmlFor="role" className="text-sm">
+              Role:
+            </label>
+            <input
+              readOnly
+              type="text"
+              name="role"
+              id="role"
+              className="bg-gray-600 px-4 py-2 rounded text-gray-300 cursor-not-allowed"
+              value={data.role}
+            />
+          </div>
+
+          {/* Cancel Subscription */}
+          {data.role === 'USER' && data.access && (
+            <button
+              type="button"
+              className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded font-semibold mt-2"
+              onClick={handleCancelSubscription}
+            >
+              Cancel Subscription
+            </button>
+          )}
+
+          {/* Edit / Save Buttons */}
+          {!isEditing ? (
+            <button
+              type="button"
+              className="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded font-semibold mt-4"
+              onClick={() => setIsEditing(true)}
+            >
+              Edit Profile
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded font-semibold mt-4"
+            >
+              Save Changes
+            </button>
+          )}
+        </form>
+      </div>
+    </HomeLayout>
+  );
 }
 
-export default Profile
+export default Profile;

@@ -1,20 +1,46 @@
-import nodemailer from 'nodemailer'
+import nodemailer from 'nodemailer';
 
-const sendMail = async (fromMail, toMail, subject, message) => {
-    let transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.GMAIL_ID,
-            pass: process.env.APP_PASSWORD
-        }
-    })
+/**
+ * Send an email via Gmail SMTP with optional PDF attachment
+ * 
+ * @param {string} fromMail - Sender email (e.g., 'SMART LMS <your@gmail.com>')
+ * @param {string} toMail - Recipient email
+ * @param {string} subject - Email subject
+ * @param {string} message - Email body in HTML format
+ * @param {Buffer|null} pdfAttachmentBuffer - Optional PDF buffer (for receipt or invoice)
+ */
+const sendMail = async (fromMail, toMail, subject, message, pdfAttachmentBuffer = null) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_ID,
+        pass: process.env.APP_PASSWORD, // App password from Google
+      },
+    });
 
-    await transporter.sendMail({
-        from: fromMail,
-        to: toMail,
-        subject: subject,
-        html: message
-    })
-}
+    const mailOptions = {
+      from: fromMail,
+      to: toMail,
+      subject,
+      html: message,
+      attachments: [],
+    };
 
-export default sendMail
+    if (pdfAttachmentBuffer) {
+      mailOptions.attachments.push({
+        filename: 'SmartLMS_Receipt.pdf',
+        content: pdfAttachmentBuffer,
+        contentType: 'application/pdf',
+      });
+    }
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Email sent to ${toMail}`);
+  } catch (error) {
+    console.error('❌ Failed to send email:', error.message);
+    throw new Error('Email sending failed');
+  }
+};
+
+export default sendMail;

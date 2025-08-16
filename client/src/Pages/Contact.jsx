@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'react-toastify'
 
-import option2 from '../assets/Json/option2.json'
+import option2 from '../assets/json/option2.json'
 import Particle from '../components/Particle'
 import axiosInstance from '../helpers/AxiosInstance';
 import HomeLayout from '../layouts/HomeLayout'

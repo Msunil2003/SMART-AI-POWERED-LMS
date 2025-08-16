@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux"
 import { toast } from "react-toastify";
 
 import HomeLayout from "../../layouts/HomeLayout"
-import { changePassword, logout } from "../../redux/slices/AuthSlice";
+import { changePassword, logout } from "../../Redux/slices/AuthSlice";
 
 function ChangePassword() {
 
