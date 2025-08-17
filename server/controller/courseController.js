@@ -254,51 +254,54 @@ export const deleteLectures = async (req, res, next) => {
 
 
 // === GET COURSES CREATED BY LOGGED-IN INSTRUCTOR ===
-export const getInstructorCourses = async (req, res, next) => {
-  try {
-    // Ensure user is an instructor
-    if (!req.user || req.user.role !== 'INSTRUCTOR') {
-      return next(createError(403, 'Access denied. Only instructors can access their courses.'));
-    }
+// export const getInstructorCourses = async (req, res, next) => {
+//   try {
+//     if (!req.user || req.user.role !== "INSTRUCTOR") {
+//       return next(
+//         createError(403, "Access denied. Only instructors can access their courses.")
+//       );
+//     }
 
-    const instructorId = req.user._id.toString(); // convert to string
-    const cacheKey = `instructor-courses-${instructorId}`;
-    let courses;
+//     const instructorId = req.user._id.toString();
+//     const cacheKey = `instructor-courses-${instructorId}`;
+//     let courses;
 
-    // Check cache first
-    if (myCache.has(cacheKey)) {
-      courses = JSON.parse(myCache.get(cacheKey));
-    } else {
-      // Fetch courses where createdBy.id matches instructorId as string
-      courses = await Course.find({ 'createdBy.id': instructorId })
-        .select('-lectures') // exclude lectures for list view
-        .lean();
+//     // Serve from cache if available
+//     const cachedCourses = myCache.get(cacheKey);
+//     if (cachedCourses) {
+//       courses = JSON.parse(cachedCourses);
+//     } else {
+//       // Fetch instructor courses
+//       courses = await Course.find({ "createdBy.id": instructorId })
+//         .select("-lectures") // exclude heavy lecture data
+//         .lean();
 
-      // Normalize courses for frontend
-      courses = courses.map(course => ({
-        _id: course._id.toString(),
-        title: course.title,
-        description: course.description,
-        category: course.category,
-        numberOfLectures: course.numberOfLectures || 0,
-        thumbnail: course.thumbnail || {},
-        createdBy: {
-          id: course.createdBy.id.toString(),
-          name: course.createdBy.name || 'Unknown'
-        },
-        createdAt: course.createdAt,
-        updatedAt: course.updatedAt
-      }));
+//       // Normalize for frontend
+//       courses = courses.map((course) => ({
+//         _id: course._id.toString(),
+//         title: course.title,
+//         description: course.description,
+//         category: course.category,
+//         numberOfLectures: course.numberOfLectures || 0,
+//         thumbnail: course.thumbnail || {},
+//         createdBy: {
+//           id: course.createdBy?.id?.toString() || instructorId,
+//           name: course.createdBy?.name || "Unknown",
+//         },
+//         createdAt: course.createdAt,
+//         updatedAt: course.updatedAt,
+//       }));
 
-      myCache.set(cacheKey, JSON.stringify(courses));
-    }
+//       // Cache normalized result
+//       myCache.set(cacheKey, JSON.stringify(courses));
+//     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Instructor courses fetched successfully',
-      courses
-    });
-  } catch (err) {
-    next(createError(500, err.message));
-  }
-};
+//     return res.status(200).json({
+//       success: true,
+//       message: "Instructor courses fetched successfully",
+//       courses,
+//     });
+//   } catch (error) {
+//     return next(createError(500, error.message || "Failed to fetch instructor courses"));
+//   }
+// };

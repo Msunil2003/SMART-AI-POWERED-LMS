@@ -46,23 +46,40 @@ export const getAllCourse = createAsyncThunk(
   }
 );
 
-// === GET INSTRUCTOR COURSES ===
-export const getInstructorCourses = createAsyncThunk(
-  'courses/getInstructorCourses',
-  async (_, { rejectWithValue }) => {
-    try {
-      toast.loading('Loading your courses...', { position: 'top-center' });
-      const response = await axiosInstance.get('/course/instructor/my-courses');
-      toast.dismiss();
-      toast.success(response.data.message);
-      return normalizeCourses(response.data.courses || []);
-    } catch (error) {
-      toast.dismiss();
-      toast.error(error?.response?.data?.message || error.message);
-      return rejectWithValue(error.message);
-    }
-  }
-);
+// export const getInstructorCourses = createAsyncThunk(
+//   "courses/getInstructorCourses",
+//   async (_, { rejectWithValue }) => {
+//     try {
+//       toast.loading("Loading your courses...", { position: "top-center" });
+
+//       const response = await axiosInstance.get("/course/instructor/my-courses");
+
+//       console.log("Instructor Courses API Response:", response.data);
+
+//       toast.dismiss();
+//       toast.success(response.data.message || "Courses fetched successfully");
+
+//       const courses = response.data.courses || [];
+
+//       const normalized = normalizeCourses(courses);
+//       console.log("Normalized courses:", normalized);
+
+//       return normalized;
+//     } catch (error) {
+//       toast.dismiss();
+//       toast.error(error?.response?.data?.message || error.message);
+//       return rejectWithValue(
+//         error?.response?.data?.message ||
+//           error.message ||
+//           "Failed to fetch instructor courses"
+//       );
+//     }
+//   }
+// );
+
+
+
+
 
 // === CREATE COURSE ===
 export const createCourse = createAsyncThunk(
@@ -164,19 +181,19 @@ const courseSlice = createSlice({
         state.error = action.payload || 'Failed to fetch courses';
       })
 
-      // GET INSTRUCTOR COURSES
-      .addCase(getInstructorCourses.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(getInstructorCourses.fulfilled, (state, action) => {
-        state.courseData = action.payload || [];
-        state.loading = false;
-      })
-      .addCase(getInstructorCourses.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload || 'Failed to fetch instructor courses';
-      })
+      // // GET INSTRUCTOR COURSES
+      // .addCase(getInstructorCourses.pending, (state) => {
+      //   state.loading = true;
+      //   state.error = null;
+      // })
+      // .addCase(getInstructorCourses.fulfilled, (state, action) => {
+      //   state.courseData = action.payload || [];
+      //   state.loading = false;
+      // })
+      // .addCase(getInstructorCourses.rejected, (state, action) => {
+      //   state.loading = false;
+      //   state.error = action.payload || 'Failed to fetch instructor courses';
+      // })
 
       // CREATE COURSE
       .addCase(createCourse.pending, (state) => {

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { FiEdit, FiTrash2 } from "react-icons/fi";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
 
 import HomeLayout from "../../../layouts/HomeLayout";
 import { deleteCourse, getAllCourse } from "../../../Redux/slices/CourseSlice";
@@ -12,8 +11,7 @@ const CoursesPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { role, data: user } = useSelector((state) => state.auth);
-  const userName = user?.name || "";
+  const { role } = useSelector((state) => state.auth);
   const courses = useSelector((state) => state.course.courseData);
   const lecturesByCourse = useSelector((state) => state.lecture.lecturesByCourse);
 
@@ -26,28 +24,17 @@ const CoursesPage = () => {
     dispatch(getAllCourse());
   }, [dispatch]);
 
-  // Filter courses by role and instructor name
+  // Show all courses (both ADMIN and INSTRUCTOR can see all)
   useEffect(() => {
-    if (!courses) return;
-
-    const filtered = courses.filter((course) => {
-      if (role === "ADMIN") return true; // Admin sees all
-
-      if (role === "INSTRUCTOR") {
-        const instructorName = course.createdBy?.name || "";
-        return instructorName === userName; // Show only courses created by this instructor
-      }
-
-      return false; // Other roles see nothing
-    });
-
-    setVisibleCourses(filtered);
-  }, [courses, role, userName]);
+    if (courses) {
+      setVisibleCourses(courses);
+    }
+  }, [courses]);
 
   // Fetch lectures for visible courses
   useEffect(() => {
     visibleCourses.forEach((course) =>
-      dispatch(getLectures(course._id)).unwrap().catch((err) => toast.error(err))
+      dispatch(getLectures(course._id)).unwrap().catch(() => {})
     );
   }, [visibleCourses, dispatch]);
 
@@ -61,12 +48,11 @@ const CoursesPage = () => {
     if (!selectedCourse) return;
     try {
       await dispatch(deleteCourse(selectedCourse._id)).unwrap();
-      toast.success("Course deleted successfully");
       setShowModal(false);
       setSelectedCourse(null);
       dispatch(getAllCourse());
-    } catch (err) {
-      toast.error(err || "Failed to delete course");
+    } catch {
+      // error already handled in slice
     }
   };
 
@@ -80,7 +66,7 @@ const CoursesPage = () => {
       <div className="p-6 flex flex-col gap-6">
         {/* Back Button */}
         <div className="self-start">
-          <Link to="/admin/dashboard">
+          <Link to={`/${role.toLowerCase()}/dashboard`}>
             <button className="px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-800 transition">
               ← Back to Dashboard
             </button>
@@ -115,8 +101,7 @@ const CoursesPage = () => {
             <tbody>
               {visibleCourses.length > 0 ? (
                 visibleCourses.map((course, idx) => {
-                  const canEditOrDelete =
-                    role === "ADMIN" || (role === "INSTRUCTOR" && course.createdBy?.name === userName);
+                  const canEditOrDelete = role === "ADMIN" || role === "INSTRUCTOR";
                   const lectureCount = lecturesByCourse[course._id]?.length || 0;
 
                   return (
@@ -161,7 +146,7 @@ const CoursesPage = () => {
               ) : (
                 <tr>
                   <td colSpan="6" className="text-white py-4">
-                    No courses available for your account.
+                    No courses available.
                   </td>
                 </tr>
               )}

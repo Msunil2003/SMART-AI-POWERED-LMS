@@ -8,7 +8,7 @@ import {
   getLectures,
   updateCourse,
   updateLectures,
-  getInstructorCourses
+  // getInstructorCourses
 } from '../controller/courseController.js';
 import { authorizedRole, isLoggedIn, verifySubscription } from "../middleware/authMiddleware.js";
 import upload from '../middleware/multer.js';
@@ -73,10 +73,10 @@ router.delete(
   deleteLectures
 );
 // seperate route to fetch the individual instructor courses
-router.get(
-  '/instructor/my-courses',
-  isLoggedIn,
-  authorizedRole('INSTRUCTOR'),
-  getInstructorCourses
-);
+// router.get(
+//   '/instructor/my-courses',
+//   isLoggedIn,
+//   authorizedRole('INSTRUCTOR'),
+//   getInstructorCourses
+// );
 export default router;
