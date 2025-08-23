@@ -12,6 +12,8 @@ import userRoutes from './routes/userRoutes.js';
 import courseRoutes from './routes/courseRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import miscRoutes from './routes/miscellaneousRoutes.js';
+import examRoutes from './routes/examRoutes.js';
+
 
 // Error Middleware
 import errorMiddleware from './middleware/errorMiddleware.js';
@@ -44,6 +46,8 @@ app.use(cors({
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/course", courseRoutes);
 app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/exam", examRoutes);
+
 app.use("/api/v1", miscRoutes); // any additional routes (e.g., contact, feedback)
 
 // Health check route

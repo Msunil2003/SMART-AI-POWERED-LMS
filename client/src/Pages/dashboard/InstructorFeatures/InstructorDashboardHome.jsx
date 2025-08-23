@@ -1,10 +1,29 @@
+import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 
+import axiosInstance from "../../../helpers/axiosInstance";
 import HomeLayout from "../../../layouts/HomeLayout";
 
 function InstructorDashboardHome() {
   const user = useSelector((state) => state.auth.user);
+  const [pendingRequests, setPendingRequests] = useState(0);
+
+  // Fetch pending exam requests count
+  useEffect(() => {
+    const fetchPendingRequests = async () => {
+      try {
+        const res = await axiosInstance.get("/exam/request/pending"); // Correct endpoint
+        if (res.data.success) {
+          const requests = res.data.data.requests || res.data.data || [];
+          setPendingRequests(requests.length);
+        }
+      } catch (err) {
+        console.error("Error fetching pending exam requests:", err);
+      }
+    };
+    fetchPendingRequests();
+  }, []);
 
   return (
     <HomeLayout>
@@ -50,18 +69,33 @@ function InstructorDashboardHome() {
             title="Announcements"
             color="from-cyan-500 to-blue-600"
           />
+          {/* Exam Request Approval Card with badge */}
+          <FeatureCard
+            to="/instructor/dashboard/exam-requests"
+            icon="📝"
+            title="Exam Request Approval"
+            color="from-purple-500 to-indigo-600"
+            badge={pendingRequests}
+            pulse={pendingRequests > 0}
+          />
         </div>
       </div>
     </HomeLayout>
   );
 }
 
-const FeatureCard = ({ to, icon, title, color }) => (
+const FeatureCard = ({ to, icon, title, color, badge, pulse }) => (
   <Link
     to={to}
-    className={`bg-gradient-to-br ${color} rounded-xl text-white p-8 flex flex-col items-center justify-center text-center shadow-lg
-    transform transition-all duration-300 hover:scale-105 hover:shadow-2xl active:scale-95`}
+    className={`relative bg-gradient-to-br ${color} rounded-xl text-white p-8 flex flex-col items-center justify-center text-center shadow-lg
+      transform transition-all duration-300 hover:scale-105 hover:shadow-2xl active:scale-95
+      ${pulse ? "animate-pulse" : ""}`}
   >
+    {badge > 0 && (
+      <span className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+        {badge}
+      </span>
+    )}
     <span className="text-5xl mb-4">{icon}</span>
     <p className="text-lg md:text-xl font-semibold">{title}</p>
   </Link>

@@ -1,10 +1,29 @@
+import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 
+import axiosInstance from '../../../helpers/axiosInstance';
 import HomeLayout from '../../../layouts/HomeLayout';
 
 function AdminDashboardHome() {
   const user = useSelector((state) => state.auth.user);
+  const [pendingExamCount, setPendingExamCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPendingExams = async () => {
+      try {
+        const res = await axiosInstance.get('/exam/request/pending-admin');
+        if (res.data.success) {
+          const requests = res.data.data.requests || res.data.data || [];
+          setPendingExamCount(requests.length);
+        }
+      } catch (err) {
+        console.error('Failed to fetch pending exam requests', err);
+      }
+    };
+
+    fetchPendingExams();
+  }, []);
 
   return (
     <HomeLayout>
@@ -49,12 +68,21 @@ function AdminDashboardHome() {
             color="from-pink-500 to-rose-500"
           />
 
-          {/* ✅ NEW CARD FOR COURSE INSTRUCTOR ONBOARDING */}
           <FeatureCard
             to="/admin/instructors"
             icon="🎓"
             title="Course Instructor Onboarding"
             color="from-cyan-500 to-blue-500"
+          />
+
+          {/* Exam Requests with notification badge & pulse animation */}
+          <FeatureCard
+            to="/admin/exam-requests"
+            icon="📝"
+            title="Exam Requests"
+            color="from-red-500 to-orange-500"
+            notification={pendingExamCount}
+            pulse={pendingExamCount > 0}
           />
         </div>
       </div>
@@ -62,12 +90,18 @@ function AdminDashboardHome() {
   );
 }
 
-const FeatureCard = ({ to, icon, title, color }) => (
+const FeatureCard = ({ to, icon, title, color, notification, pulse }) => (
   <Link
     to={to}
-    className={`bg-gradient-to-br ${color} rounded-xl text-white p-8 flex flex-col items-center justify-center text-center shadow-lg 
-    transform transition-all duration-300 hover:scale-105 hover:shadow-2xl active:scale-95`}
+    className={`relative bg-gradient-to-br ${color} rounded-xl text-white p-8 flex flex-col items-center justify-center text-center shadow-lg
+      transform transition-all duration-300 hover:scale-105 hover:shadow-2xl active:scale-95
+      ${pulse ? "animate-pulse" : ""}`}
   >
+    {notification > 0 && (
+      <span className="absolute top-2 right-2 bg-white text-red-600 text-xs font-bold rounded-full px-2 py-0.5 animate-pulse">
+        {notification}
+      </span>
+    )}
     <span className="text-5xl mb-4">{icon}</span>
     <p className="text-lg md:text-xl font-semibold">{title}</p>
   </Link>

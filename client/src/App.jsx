@@ -27,6 +27,9 @@ import EditCourseLecture from './Pages/dashboard/EditCourseLecture';
 import InstructorCoursesPage from "./Pages/dashboard/InstructorFeatures/InstructorCoursesPage.jsx";
 import InstructorDashboard from './Pages/dashboard/InstructorFeatures/InstructorDashboardHome.jsx';
 import LecturePlayer from './Pages/dashboard/LecturePlayer.jsx';
+import ExamRegistration from './Pages/exam/ExamRegistration';
+import ExamRequests from "./Pages/exam/ExamRequests.jsx"
+import ExamStart from './Pages/exam/ExamStart';
 import HomePage from './Pages/HomePage';
 import NotFound from './Pages/NotFound';
 import ChangePassword from './Pages/password/ChangePassword';
@@ -121,7 +124,16 @@ function App() {
       <Route element={<RequiredAuth allowedRole={['ADMIN', 'INSTRUCTOR']} />}>
         <Route path="/course/:name/:id/lectures/addlecture" element={<AddCourseLecture />} />
         <Route path="/course/:name/:id/lectures/editlecture" element={<EditCourseLecture />} />
+        <Route path="/instructor/dashboard/exam-requests" element={<ExamRequests />} />
+        <Route path="/admin/exam-requests" element={<ExamRequests />} />
       </Route>
+
+
+      {/* ✅ Student-only Exam Routes */}
+<Route element={<RequiredAuth allowedRole={['USER']} />}>
+  <Route path="/exam/:id/register" element={<ExamRegistration />} />
+  <Route path="/exam/start/:examCode" element={<ExamStart />} />
+</Route>
     </Routes>
   );
 }

@@ -4,14 +4,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 
 import Footer from "../../components/Footer";
-import { getLectures } from "../../Redux/slices/lectureSlice";
+import { getLectures } from "../../Redux/slices/LectureSlice";
 
 function CourseLecturesList() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { id: courseId, name } = useParams();
 
-  // Use raw string directly from params
   const courseTitle = name;
 
   const { lecturesByCourse } = useSelector((state) => state.lecture);
@@ -34,14 +33,29 @@ function CourseLecturesList() {
   return (
     <div className="relative min-h-screen bg-gray-900">
       <div className="lg:w-[70%] mx-auto py-8 px-4">
-        <div className="flex items-center gap-4 mb-6">
-          <FaArrowLeft
-            className="text-white text-2xl cursor-pointer hover:text-yellow-400 transition-colors"
-            onClick={() => navigate(-1)}
-          />
-          <h1 className="text-3xl font-bold text-white">{courseTitle}</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <FaArrowLeft
+              className="text-white text-2xl cursor-pointer hover:text-yellow-400 transition-colors"
+              onClick={() => navigate(-1)}
+            />
+            <h1 className="text-3xl font-bold text-white">{courseTitle}</h1>
+          </div>
+
+          {/* Register for Exam button visible only for 'USER' role AND if lectures exist */}
+          {role === "USER" && lectures.length > 0 && (
+            <button
+              onClick={() =>
+                navigate(`/exam/${courseId}/register`, { state: { courseTitle } })
+              }
+              className="btn btn-yellow normal-case text-lg px-6 py-3 hover:bg-yellow-500 transition-colors"
+            >
+              Register for Exam
+            </button>
+          )}
         </div>
 
+        {/* Add Lecture button visible only for ADMIN or INSTRUCTOR */}
         {(role === "ADMIN" || role === "INSTRUCTOR") && (
           <button
             onClick={handleAddLecture}
