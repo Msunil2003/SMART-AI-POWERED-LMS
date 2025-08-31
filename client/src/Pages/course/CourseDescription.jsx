@@ -1,32 +1,64 @@
+import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
-import HomeLayout from '../../layouts/HomeLayout';
+import axiosInstance from "../../helpers/axiosInstance";
+import HomeLayout from "../../layouts/HomeLayout";
 
 function CourseDescription() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { role, user } = useSelector((state) => state.auth);
 
-  // ✅ Check if user has access: Admins or users with valid purchase
-  const hasAccess = role === 'ADMIN' || user?.access?.valid === true;
+  const [enrolled, setEnrolled] = useState(false);
+  const [loadingEnroll, setLoadingEnroll] = useState(false);
 
-  // Safe destructuring with fallbacks
-  const courseTitle = state?.title || 'Untitled Course';
-  const courseId = state?._id || '';
-  const courseThumbnail = state?.thumbnail?.secure_url || '/default-thumbnail.png';
-  const courseCategory = state?.category || 'N/A';
-  const courseInstructor = state?.createdBy?.name || 'Unknown';
+  const courseTitle = state?.title || "Untitled Course";
+  const courseId = state?._id || "";
+  const courseThumbnail = state?.thumbnail?.secure_url || "/default-thumbnail.png";
+  const courseCategory = state?.category || "N/A";
+  const courseInstructor = state?.createdBy?.name || "Unknown";
+  const courseDescription = state?.description || "No description available";
 
-  // Get lectures from Redux store dynamically
-  const lectures = useSelector(
-    (store) => store.lecture.lecturesByCourse[courseId] || []
-  );
-
-  // Calculate number of lectures dynamically
+  const lectures = useSelector((store) => store.lecture.lecturesByCourse[courseId] || []);
   const courseLectures = lectures.length;
 
-  const courseDescription = state?.description || 'No description available';
+  // Admins or verified subscribers
+  const isVerified = role === "ADMIN" || user?.access?.valid === true;
+
+  // Check enrollment status on mount
+  useEffect(() => {
+    const checkEnrollment = async () => {
+      if (!user?._id) return;
+
+      try {
+        const res = await axiosInstance.get(`/course/enroll/me/course/${courseId}`);
+        setEnrolled(res.data.data.length > 0);
+      } catch (err) {
+        console.error("Enrollment check error:", err);
+      }
+    };
+
+    checkEnrollment();
+  }, [courseId, user?._id]);
+
+  // Enroll handler
+  const handleEnroll = async () => {
+    if (!user?._id) return toast.error("Please login first");
+
+    try {
+      setLoadingEnroll(true);
+      const res = await axiosInstance.post(`/course/enroll/me/${courseId}`);
+      toast.success(res.data.message || "You have enrolled successfully");
+      setEnrolled(true);
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Enrollment failed");
+    } finally {
+      setLoadingEnroll(false);
+    }
+  };
 
   return (
     <HomeLayout>
@@ -40,36 +72,41 @@ function CourseDescription() {
           />
 
           <p className="font-semibold lg:text-2xl text-xl text-yellow-400 capitalize">
-            Category:
-            <span className="text-xl text-blue-500"> {courseCategory}</span>
+            Category: <span className="text-xl text-blue-500">{courseCategory}</span>
           </p>
 
           <p className="font-semibold lg:text-2xl text-xl text-yellow-400 capitalize">
-            Instructor:
-            <span className="text-xl text-blue-500"> {courseInstructor}</span>
+            Instructor: <span className="text-xl text-blue-500">{courseInstructor}</span>
           </p>
 
           <p className="font-semibold lg:text-2xl text-xl text-yellow-400 capitalize">
-            Number of lectures:
-            <span className="text-xl text-blue-500"> {courseLectures}</span>
+            Number of lectures: <span className="text-xl text-blue-500">{courseLectures}</span>
           </p>
 
           {/* Access button */}
-          {hasAccess ? (
-            <button
-              className="btn btn-primary capitalize"
-              onClick={() =>
-                navigate(`/course/${courseTitle}/${courseId}/lectures`, { state })
-              }
-            >
-              Go to Lectures
-            </button>
+          {isVerified ? (
+            enrolled ? (
+              <button
+                className="btn btn-primary capitalize"
+                onClick={() =>
+                  navigate(`/course/${courseTitle}/${courseId}/lectures`, { state })
+                }
+              >
+                Go to Lectures
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary capitalize"
+                onClick={handleEnroll}
+                disabled={loadingEnroll}
+              >
+                {loadingEnroll ? "Enrolling..." : "Enroll the Course"}
+              </button>
+            )
           ) : (
             <button
               className="btn btn-primary capitalize"
-              onClick={() =>
-                navigate(`/course/${courseTitle}/checkout`, { state })
-              }
+              onClick={() => navigate(`/course/${courseTitle}/checkout`, { state })}
             >
               Buy Course
             </button>

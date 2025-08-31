@@ -8,9 +8,10 @@ import {
   getLectures,
   updateCourse,
   updateLectures,
+  enrollMe, getCourseEnrollments, getAllEnrollments,getMyEnrollments,
   // getInstructorCourses
 } from '../controller/courseController.js';
-import { authorizedRole, isLoggedIn, verifySubscription } from "../middleware/authMiddleware.js";
+import { authorizedRole, isLoggedIn,isAdmin, verifySubscription, isStudent } from "../middleware/authMiddleware.js";
 import upload from '../middleware/multer.js';
 
 const router = Router();
@@ -79,4 +80,15 @@ router.delete(
 //   authorizedRole('INSTRUCTOR'),
 //   getInstructorCourses
 // );
+
+// Enroll a student in a course
+router.post("/enroll/me/:courseId", isLoggedIn,isStudent, enrollMe);
+router.get("/enroll/me/course/:courseId", isLoggedIn, isStudent, getMyEnrollments);
+
+
+// Get all enrollments for a course
+router.get("/course/:courseId", isLoggedIn, authorizedRole('ADMIN', 'INSTRUCTOR'), getCourseEnrollments);
+
+// Get all enrollments (admin)
+router.get("/", isLoggedIn, authorizedRole('ADMIN', 'INSTRUCTOR'), getAllEnrollments);
 export default router;

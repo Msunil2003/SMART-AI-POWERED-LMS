@@ -27,9 +27,12 @@ import EditCourseLecture from './Pages/dashboard/EditCourseLecture';
 import InstructorCoursesPage from "./Pages/dashboard/InstructorFeatures/InstructorCoursesPage.jsx";
 import InstructorDashboard from './Pages/dashboard/InstructorFeatures/InstructorDashboardHome.jsx';
 import LecturePlayer from './Pages/dashboard/LecturePlayer.jsx';
+import ExamQuestionsBuilder from "./Pages/exam/ExamQuestionsBuilder.jsx";
 import ExamRegistration from './Pages/exam/ExamRegistration';
 import ExamRequests from "./Pages/exam/ExamRequests.jsx"
+import ExamSettingsPage from "./Pages/exam/ExamSettingsPage.jsx"
 import ExamStart from './Pages/exam/ExamStart';
+import ExamWelcomePage from "./Pages/exam/ExamWelcomePage.jsx";
 import HomePage from './Pages/HomePage';
 import NotFound from './Pages/NotFound';
 import ChangePassword from './Pages/password/ChangePassword';
@@ -92,6 +95,7 @@ function App() {
   path="/instructor/courses" 
   element={<InstructorCoursesPage />} 
 />
+<Route path="/instructor/dashboard/exams/settings" element={<ExamSettingsPage />} />
         
       </Route>
 
@@ -106,6 +110,10 @@ function App() {
         <Route path="/admin/instructors" element={<InstructorsOnboarding />} />
         <Route path="/admin/instructors/invite" element={<InviteInstructor />} />
         <Route path="/admin/instructors/approvals" element={<PendingApporval />} />
+        <Route path="/admin/dashboard/exams/settings" element={<ExamSettingsPage />} />
+         <Route path="/admin/dashboard/exams/:setId/builder" element={<ExamQuestionsBuilder />} />
+        
+        
       </Route>
 
       {/* ✅ Shared USER/ADMIN/INSTRUCTOR Routes */}
@@ -126,6 +134,7 @@ function App() {
         <Route path="/course/:name/:id/lectures/editlecture" element={<EditCourseLecture />} />
         <Route path="/instructor/dashboard/exam-requests" element={<ExamRequests />} />
         <Route path="/admin/exam-requests" element={<ExamRequests />} />
+         <Route path="/instructor/dashboard/exams/:setId/builder" element={<ExamQuestionsBuilder />} />
       </Route>
 
 
@@ -133,6 +142,7 @@ function App() {
 <Route element={<RequiredAuth allowedRole={['USER']} />}>
   <Route path="/exam/:id/register" element={<ExamRegistration />} />
   <Route path="/exam/start/:examCode" element={<ExamStart />} />
+  <Route path="/exam/welcome/:examCode" element={<ExamWelcomePage />} />
 </Route>
     </Routes>
   );

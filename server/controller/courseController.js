@@ -1,6 +1,7 @@
 // controllers/courseController.js
 import mongoose from "mongoose";
 import Course from '../models/courseModel.js';
+import CourseEnrollment from "../models/CourseEnrollment.js";
 import createError from '../utils/error.js';
 import { myCache } from '../app.js';
 
@@ -305,3 +306,99 @@ export const deleteLectures = async (req, res, next) => {
 //     return next(createError(500, error.message || "Failed to fetch instructor courses"));
 //   }
 // };
+
+
+// ====================== ENROLL ME ======================
+export const enrollMe = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const user = req.user;
+
+    if (!courseId)
+      return res.status(400).json({ success: false, message: "Course ID required" });
+
+    // Fetch course and populate creator
+    const course = await Course.findById(courseId).populate("createdBy.id", "name");
+    if (!course)
+      return res.status(404).json({ success: false, message: "Course not found" });
+
+    // Check if user already enrolled
+    const alreadyEnrolled = await CourseEnrollment.findOne({
+      "student.id": user._id,
+      "course.id": course._id,
+    });
+    if (alreadyEnrolled)
+      return res.status(400).json({ success: false, message: "Already enrolled" });
+
+    // Create enrollment
+    const enrollment = await CourseEnrollment.create({
+      student: { id: user._id, name: user.name, email: user.email },
+      course: {
+        id: course._id,
+        name: course.title,
+        createdBy: {
+          id: course.createdBy?.id || course.createdBy._id,
+          name: course.createdBy?.name || course.createdBy.name,
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: enrollment,
+      message: "You have enrolled successfully",
+    });
+  } catch (err) {
+    console.error("Enroll error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ====================== GET MY ENROLLMENTS ======================
+export const getMyEnrollments = async (req, res) => {
+  try {
+    const user = req.user;
+    const { courseId } = req.params;
+
+    if (!courseId)
+      return res.status(400).json({ success: false, message: "Course ID required" });
+
+    // Find all enrollments of this user for this course
+    const enrollments = await CourseEnrollment.find({
+      "student.id": user._id,
+      "course.id": courseId,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: enrollments,
+      message: "Enrollments fetched successfully",
+    });
+  } catch (err) {
+    console.error("Get enrollments error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ================= Get enrollment list for a course =================
+export const getCourseEnrollments = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const enrollments = await CourseEnrollment.find({ "course.id": courseId }).sort({ enrolledAt: -1 });
+    res.status(200).json({ success: true, data: enrollments });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ================= Get all enrollments (admin) =================
+export const getAllEnrollments = async (req, res) => {
+  try {
+    const enrollments = await CourseEnrollment.find().sort({ enrolledAt: -1 });
+    res.status(200).json({ success: true, data: enrollments });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};

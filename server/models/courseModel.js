@@ -68,7 +68,15 @@ const courseSchema = new Schema(
     isFree: {
       type: Boolean,
       default: false
-    }
+    },
+
+    // ✅ NEW FIELD: list of enrolled students
+    students: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    ]
   },
   { timestamps: true }
 );
